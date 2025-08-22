@@ -67,11 +67,17 @@ DB_PASSWORD=sua_senha
 DB_NAME=sistema_equipamentos
 ```
 
+
+
+Crie um banco de dados no postgreSQL
+
 Rodar migrations:
 
 ```bash
 npm run typeorm migration:run
 ```
+No banco, execute o script localizado em  `sql/base-data.sql`
+
 
 ---
 
