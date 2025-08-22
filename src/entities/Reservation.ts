@@ -3,7 +3,6 @@ import {
   PrimaryGeneratedColumn,
   ManyToOne,
   JoinColumn,
-  CreateDateColumn,
   Column,
 } from "typeorm";
 import { Employee } from "./Employee";
@@ -22,7 +21,7 @@ export class Reservation {
   @JoinColumn({ name: "equipamento_id" })
   equipamento!: Equipment;
 
-  @CreateDateColumn()
+  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   data_inicio!: Date;
 
   @Column({ type: "timestamp", nullable: true })

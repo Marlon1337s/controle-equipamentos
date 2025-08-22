@@ -9,8 +9,16 @@ const resRepo = () => AppDataSource.getRepository(Reservation);
 const eqRepo = () => AppDataSource.getRepository(Equipment);
 const empRepo = () => AppDataSource.getRepository(Employee);
 
+type CriarReservaDTO = {
+  funcionario_id: number;
+  equipamento_id: number;
+  // opcionais para agendamento:
+  data_inicio?: string; // ISO: "2025-09-01T09:00:00"
+  data_fim?: string | null; // ISO ou null (aberto)
+};
+
 export const ReservasService = {
-  async criarReserva(dto: { funcionario_id: number; equipamento_id: number }) {
+  async criarReserva(dto: CriarReservaDTO) {
     const funcionario = await empRepo().findOne({
       where: { id: dto.funcionario_id, is_active: true },
     });
@@ -20,32 +28,71 @@ export const ReservasService = {
       where: { id: dto.equipamento_id, is_active: true },
     });
     if (!equipamento) throw NotFound("Equipamento não encontrado ou inativo");
-    if (equipamento.status === "manutencao")
+
+    if (equipamento.status === "manutencao") {
       throw Conflict("Equipamento em manutenção");
-    if (equipamento.status === "emprestado")
-      throw Conflict("Equipamento já emprestado");
+    }
 
-    // verificar se já existe reserva ativa para este equipamento
-    const reservaAtivaEquip = await resRepo().findOne({
-      where: { equipamento: { id: equipamento.id }, data_fim: IsNull() },
+    const newStart = dto.data_inicio ? new Date(dto.data_inicio) : new Date();
+    const newEnd = dto.data_fim ? new Date(dto.data_fim) : null;
+
+    if (Number.isNaN(newStart.getTime())) {
+      throw Conflict("data_inicio inválida");
+    }
+    if (newEnd && Number.isNaN(newEnd.getTime())) {
+      throw Conflict("data_fim inválida");
+    }
+    if (newEnd && newEnd <= newStart) {
+      throw Conflict("data_fim deve ser maior que data_inicio");
+    }
+
+    const qbEquip = resRepo()
+      .createQueryBuilder("r")
+      .where("r.equipamento_id = :equipId", { equipId: dto.equipamento_id })
+      .andWhere("(r.data_fim IS NULL OR r.data_fim > :newStart)", { newStart });
+
+    if (newEnd) {
+      qbEquip.andWhere("r.data_inicio < :newEnd", { newEnd });
+    }
+
+    const conflitoEquip = await qbEquip.getOne();
+    if (conflitoEquip) {
+      throw Conflict(
+        "Já existe uma reserva que conflita com o período informado (equipamento)."
+      );
+    }
+
+    const qbFunc = resRepo()
+      .createQueryBuilder("r")
+      .where("r.funcionario_id = :funcId", { funcId: dto.funcionario_id })
+      .andWhere("(r.data_fim IS NULL OR r.data_fim > :newStart)", { newStart });
+
+    if (newEnd) {
+      qbFunc.andWhere("r.data_inicio < :newEnd", { newEnd });
+    }
+
+    const conflitoFunc = await qbFunc.getOne();
+    if (conflitoFunc) {
+      throw Conflict(
+        "Funcionário já possui reserva que conflita com o período informado."
+      );
+    }
+
+    const nova = resRepo().create({
+      funcionario,
+      equipamento,
+      data_inicio: newStart,
+      data_fim: newEnd ?? null,
     });
-    if (reservaAtivaEquip)
-      throw Conflict("Já existe uma reserva ativa para este equipamento");
-
-    // verificar se funcionário já tem reserva ativa
-    const reservaAtivaFuncionario = await resRepo().findOne({
-      where: { funcionario: { id: funcionario.id }, data_fim: IsNull() },
-    });
-    if (reservaAtivaFuncionario)
-      throw Conflict("Funcionário já está utilizando outro equipamento");
-
-    // criar reserva
-    const nova = resRepo().create({ funcionario, equipamento, data_fim: null });
     const saved = await resRepo().save(nova);
 
-    // atualizar status do equipamento
-    equipamento.status = "emprestado";
-    await eqRepo().save(equipamento);
+    const agora = new Date();
+    const reservaEmAndamento = newStart <= agora && (!newEnd || newEnd > agora);
+
+    if (reservaEmAndamento) {
+      equipamento.status = "emprestado";
+      await eqRepo().save(equipamento);
+    }
 
     return saved;
   },
@@ -58,18 +105,34 @@ export const ReservasService = {
     r.data_fim = new Date();
     await resRepo().save(r);
 
-    // liberar equipamento
     const eq = await eqRepo().findOne({ where: { id: r.equipamento.id } });
     if (eq) {
-      eq.status = "disponivel";
-      await eqRepo().save(eq);
+      const agora = new Date();
+
+      const outraAtiva = await resRepo()
+        .createQueryBuilder("rx")
+        .where("rx.equipamento_id = :equipId", { equipId: eq.id })
+        .andWhere("rx.data_inicio <= :agora", { agora })
+        .andWhere("(rx.data_fim IS NULL OR rx.data_fim > :agora)", { agora })
+        .getOne();
+
+      if (outraAtiva) {
+        if (eq.status !== "emprestado") {
+          eq.status = "emprestado";
+          await eqRepo().save(eq);
+        }
+      } else {
+        if (eq.status !== "disponivel") {
+          eq.status = "disponivel";
+          await eqRepo().save(eq);
+        }
+      }
     }
 
     return r;
   },
 
   async listar() {
-    // graças ao eager: true nas entidades, já traz funcionario + equipamento
     return resRepo().find({ order: { id: "DESC" } });
   },
 };
