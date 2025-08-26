@@ -49,7 +49,7 @@ A API segue uma arquitetura em camadas:
 git clone <url-do-repositorio>
 
 # Acessar pasta
-cd sistema-equipamentos
+cd controle-equipamentos
 
 # Instalar dependências
 npm install
@@ -64,7 +64,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=seu_usuario
 DB_PASSWORD=sua_senha
-DB_NAME=sistema_equipamentos
+DB_NAME=controle_equipamentos
 ```
 
 
