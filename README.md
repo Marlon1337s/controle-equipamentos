@@ -1,135 +1,78 @@
-# Sistema de Gestão de Equipamentos
+# Controle de Equipamentos
 
-Este projeto é uma **API REST** construída com **Node.js + Express + TypeORM** que gerencia:
-
+API em **Node.js + TypeScript + Express + TypeORM + PostgreSQL** para gerenciar:
+- Tipos de equipamentos (ex.: notebooks, projetores)
+- Equipamentos em si
 - Funcionários
-- Tipos de Equipamentos
-- Equipamentos
-- Reservas de Equipamentos
+- Reservas de uso (quem pegou qual equipamento, quando e por quanto tempo)
 
-A ideia é simples: permitir que uma empresa controle quais equipamentos estão disponíveis, emprestados, em manutenção ou reservados, garantindo rastreabilidade com `created_by`, `updated_by`, `created_at` e `updated_at`.
-
----
-
-## Tecnologias Utilizadas
-
-- **Node.js** + **Express** – servidor e rotas
-- **TypeScript** – tipagem e organização do código
-- **TypeORM** – ORM para PostgreSQL
-- **PostgreSQL** – banco de dados relacional
-- **Migrations** – versionamento do schema
-- **Middlewares** – tratamento de erros e boas práticas
+Regras importantes:
+- Reservas não podem se sobrepor em data/hora.
+- Nada é apagado de verdade: usamos **soft delete** (`is_active = false`).
+- O equipamento só fica com status `emprestado` quando há reserva ativa.
 
 ---
 
-## Estrutura do Projeto
+##  Rodando o projeto em outra máquina
 
-A API segue uma arquitetura em camadas:
-
-- **Entities** → Definição das tabelas (Funcionários, Equipamentos, Tipos, Reservas)
-- **Services** → Regras de negócio (criar, atualizar, excluir logicamente, etc.)
-- **Controllers** → Recebem a requisição e chamam os services
-- **Routes** → Pontos de acesso para cada recurso (/equipamentos, /funcionarios, /reservas, /tipos)
-- **Utils** → Tratamento de erros e utilitários
+### 1. Pré-requisitos
+- [Node.js](https://nodejs.org/) (versão 18+ recomendada)
+- [npm](https://www.npmjs.com/) (vem junto com o Node)
+- [PostgreSQL](https://www.postgresql.org/) (versão 14+)
+- Um cliente SQL (pgAdmin, DBeaver, ou terminal `psql`)
 
 ---
 
-## Configuração do Projeto
-
-### Pré-requisitos
-
-- Node.js 18+
-- PostgreSQL rodando localmente
-- Yarn ou NPM
-
-### Instalação
-
+### 2. Clone o repositório
+Na máquina de destino:
 ```bash
-# Clonar o repositório
-git clone <url-do-repositorio>
-
-# Acessar pasta
+git clone https://github.com/Marlon1337s/controle-equipamentos.git
 cd controle-equipamentos
+```
+---
 
-# Instalar dependências
+### 3. Instale as dependências
+```bash
 npm install
 ```
+- As dependências principais são: Express, TypeORM, pg, reflect-metadata e dotenv
 
-### Configuração do Banco
+---
 
-Crie um arquivo `.env` na raiz do projeto:
+### 4. No PostgreSQL, crie o Banco:
+```bash
+CREATE DATABASE controle_equipamentos;
+```
+---
 
-```env
+### 5. Configure o .env
+Na pasta raiz do projeto, crie um arquivo .env:
+```bash
 DB_HOST=localhost
 DB_PORT=5432
-DB_USERNAME=seu_usuario
-DB_PASSWORD=sua_senha
+DB_USERNAME=postgres
+DB_PASSWORD=postgres
 DB_NAME=controle_equipamentos
 ```
+---
 
-
-
-Crie um banco de dados no postgreSQL
-
-Rodar migrations:
-
+### 6. Rode o servidor:
+Em modo de desenvolvedor (dev):
 ```bash
-npm run typeorm migration:run
+npm run dev
 ```
-No banco, execute o script localizado em  `sql/base-data.sql`
-
-
----
-
-## Endpoints Principais
-
-### Funcionários
-
-- `POST /funcionarios` → Criar funcionário
-- `GET /funcionarios` → Listar funcionários
-- `GET /funcionarios/:id` → Buscar funcionário
-- `PUT /funcionarios/:id` → Atualizar funcionário
-- `DELETE /funcionarios/:id` → Desativar funcionário
-
-### Equipamentos
-
-- `POST /equipamentos` → Criar equipamento
-- `GET /equipamentos` → Listar equipamentos
-- `GET /equipamentos/:id` → Buscar equipamento
-- `PUT /equipamentos/:id` → Atualizar equipamento
-- `DELETE /equipamentos/:id` → Desativar equipamento
-
-### Tipos de Equipamentos
-
-- `POST /tipos` → Criar tipo
-- `GET /tipos` → Listar tipos
-- `PUT /tipos/:id` → Atualizar tipo
-- `DELETE /tipos/:id` → Desativar tipo
-
-### Reservas
-
-- `POST /reservas` → Criar reserva
-- `PUT /reservas/:id/finalizar` → Finalizar reserva
-- `GET /reservas` → Listar reservas
-
----
-
-## Testando com Postman
-
-1. Configure as rotas no Postman conforme descritas acima.
-2. Use a aba **Body → JSON** para criar registros.
-3. Exemplo de criação de funcionário:
-
-```json
-{
-  "nome": "Maria Oliveira",
-  "departamento": "Financeiro",
-  "created_by": "admin"
-}
+Para compilar e rodar em "produção"
+```bash
+npm run build
+npm start
 ```
+Se tudo der certo você verá:
+```bash
+[DB] Conectado com sucesso
+[HTTP] Servidor ouvindo em http://localhost:3000
+```
+## Observações:
+O projeto foi feito para ser simples de rodar em qualquer máquina com Node e PostgreSQL. <br>
+Basta ajustar o .env e ter o banco criado.
 
----
 
-## Licença
-
-Este projeto é open-source para fins de estudo e pode ser adaptado conforme sua necessidade.
